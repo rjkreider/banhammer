@@ -59,10 +59,10 @@ if ($num == "0") {
   $geodb = geoip_open($home."/GeoLiteCity.dat",GEOIP_STANDARD) or die ('Failed to open Geo Database');
   $geoip = geoip_record_by_addr($geodb,$ip);
   if ($geoip) {
-    $query = "INSERT INTO `fail2ban` values ('', '".$name."', '".$protocol."', '".$port."', '".$ip."', '1', '".$geoip->longitude."', '".$geoip->latitude."', '".$geoip->country_code."', '".$geoip->city.", ".$geoip->country_name."', NOW())";
+    $query = "INSERT INTO `fail2ban` values (NULL, '".$name."', '".$protocol."', '".$port."', '".$ip."', '1', '".$geoip->longitude."', '".$geoip->latitude."', '".$geoip->country_code."', '".$geoip->city.", ".$geoip->country_name."', NOW())";
     echo "Inserting $ip into database with geo info\n$query";
   }else {
-    $query = "INSERT INTO `fail2ban` values ('', '".$name."', '".$protocol."', '".$port."', '".$ip."', '1', '', '', '', '', NOW())";
+    $query = "INSERT INTO `fail2ban` values (NULL, '".$name."', '".$protocol."', '".$port."', '".$ip."', '1', '', '', '', '', NOW())";
     echo "Inserting $ip into database without geo info\n";
   }
 }else {
