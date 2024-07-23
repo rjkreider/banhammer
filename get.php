@@ -28,8 +28,8 @@ function get_stats() {
 
     $xx['protos'] = getdataset("SELECT name, COUNT(name) as count FROM $table GROUP BY name");
     $xx['totals'] = getdataset("SELECT code, country, COUNT(*) as count FROM $table GROUP BY country ORDER BY count DESC LIMIT 5");
-    $xx['last'] = getdataset("SELECT code, country, MAX(timestamp) as timestamp FROM $table GROUP BY country ORDER BY timestamp DESC LIMIT 5");
-    $xx['lastips'] = getdataset("SELECT ip, code, country, timestamp, id FROM $table ORDER BY timestamp DESC LIMIT 30");
+    $xx['last'] = getdataset("SELECT code, country, MAX(datetime(timestamp,'localtime')) as timestamp FROM $table GROUP BY country ORDER BY timestamp DESC LIMIT 5");
+    $xx['lastips'] = getdataset("SELECT ip, code, country, datetime(timestamp,'localtime') as timestamp, id FROM $table ORDER BY timestamp DESC LIMIT 30");
 
     return $xx;
 }
@@ -37,7 +37,7 @@ function get_stats() {
 function get_markers() {
     global $link;
     global $table;
-    $query = "SELECT id, name, protocol, ports, GROUP_CONCAT(CONCAT(id, ':', ip) SEPARATOR ',') as ips, COUNT(id) as count, longitude, latitude, code, code3, country, city, MAX(timestamp) as timestamp, MAX(ban) as ban FROM $table GROUP BY longitude, latitude, ban ORDER BY id ASC";
+    $query = "SELECT id, name, protocol, ports, GROUP_CONCAT(CONCAT(id, ':', ip) SEPARATOR ',') as ips, COUNT(id) as count, longitude, latitude, code, code3, country, city, MAX(datetime(timestamp,'localtime')) as timestamp, MAX(ban) as ban FROM $table GROUP BY longitude, latitude, ban ORDER BY id ASC";
     $result = $link->query($query);
     if (!$result) {
         die('Invalid query: ' . $link->lastErrorMsg());
