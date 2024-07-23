@@ -1,5 +1,5 @@
 <?php
-$database = 'fail2ban.db';
+$database = '/var/www/html/banhammer/fail2ban.db';
 $table = 'fail2ban';
 
 // Opens a connection to an SQLite3 database
