@@ -1,141 +1,202 @@
-      var map;
+var map;
+var layerControl;
+var layerGroups= new Object();
+var colorizedCountryLayer;
 
-      function clearOverlays() {
-      for (var i = 0; i < markersArray.length; i++ ) {
-      markersArray[i].setMap(null);
-      }
-        markersArray.length = 0;
-      }
+var stats;
 
-      function updatex()
-      {
-          clearOverlays();
-	  loadmarkers();
-      }
+//used to determine color scale
+var maxPerCountry=0;
+var countryCounter=0;
 
-      function loadmarkers()
-      {
+var markersArray=[];
+function clearOverlays() {
+    colorizedCountryLayer.clearLayers();
+    for(var l in layerGroups){
+        layerGroups[l].clearLayers();
+    };
+        
+}
+
+function updatex() {
+    clearOverlays();
+    loadmarkers();
+}
+
+function loadmarkers() {
+    $.getJSON("get.php?action=markers", function(data) {
+        for (var i in data) {
+            createMarker(data[i]);
+        }
+    });
+    $.getJSON("get.php?action=stats", function(data) {
+        stats=data;
+	$('.stat ol').empty();
+        $(data['totals']).each(function(i,j) {
+            $("#top5").append("<li><img src=\"images/flags/" + j.code + ".png\" alt=\"" + j.code + "\" /> " + j.country + " (" + j.count + ")" + "</li>");
+        });
+
+        $(data['last']).each(function(i,j) {
+            $("#last5").append("<li title=\""+j.timestamp+"\"><img src=\"images/flags/" + j.code + ".png\" alt=\"" + j.code + "\" /> " + j.country + "</li>");
+        });
+
+        $(data['lastips']).each(function(i,j) {
+            $("#lastips").append("<li title=\""+j.country+" - "+j.timestamp+"\"><img src=\"images/flags/" + j.code + ".png\" alt=\"" + j.code + "\" /> " + j.timestamp.split(' ')[1] + ' <a href="#" onclick="whois(\''+j.id+'\');return false;">' + j.ip + "</a></li>");
+        });
+
+        $(data['protos']).each(function(i,j) {
+            $("#protocols").append("<li>" + j.name + " (" + j.count + ")</li>");
+        });
+
+        countryCounter=data['totalpercountry'];
+        for(let i in countryCounter){
+          if(countryCounter[i].count>maxPerCountry)maxPerCountry=countryCounter[i].count;
+        };
+
+        $("#ipsblocked").html(" " + data['totalip'][0].count);
+        $("#ipsban").html(" " + data['ipban'][0].count);
+        $("#countriesclocked").html(" " + data['totalcountry'][0].count);
+
+        if(typeof(colorizedCountryLayer) == 'undefined'){
+            colorizedCountryLayer=L.geoJson(countryData, {style: style});
+            colorizedCountryLayer.addTo(map);
+            layerControl.addOverlay(colorizedCountryLayer, "Country colorization");
+        }else{
+            colorizedCountryLayer.addData(countryData, {style: style});
+        }
+
+    });
 
 
- 	$.getJSON("getmarkers.php", function( data ) {
+}
 
-          for (var i in data) {
-            var name = data[i].geo;
-            var address = data[i].ip;
-            var type = data[i].name;
-            var point = new google.maps.LatLng(parseFloat(data[i].latitude),parseFloat(data[i].longitude));
-            createMarker(point, name, address, type);
-	  } 
-	 });
+function createMarker(data) {
 
-	$.getJSON("getstats.php", function( data ) 
-	{
-
-		var totals = data['totals'];
-		var countrys = data['last'];
-		var protos = data['protos'];
-
-		for (var i in totals)
-		{
-			var country = totals[i].country;
-			var count = totals[i].count;
-			var name = country_code_to_country(country);
-			$("#top5").append("<li><img src=\"images/flags/"+country+".png\" alt=\""+country+"\" title=\"\" /> "+name+" ("+count+")"+"</li>");
-		}
-
-		for (var i in countrys)
-		{
-			var country = countrys[i].country;
-			var name = country_code_to_country(country);
-			$("#last5").append("<li><img src=\"images/flags/"+country+".png\" alt=\""+country+"\" title=\"\" /> "+name+"</li>");
-		}
-
-		for (var i in protos)
-		{
-			var name = protos[i].name;
-			var count = protos[i].count;
-
-			$("#protocols").append("<li>"+name+" ("+count+")</li>");
-		}
-	
-		 $("#ipsblocked").html(" "+data['totalip'][0].count);
-		 $("#countriesclocked").html(" "+data['totalcountry'][0].count);
-
-	});
-
-
-      }
-
-      function createMarker(point, name, address, type) {
-
-          words = type+" attack from "+address+"\n"+name;
-
-          iname="markers/red_MarkerA.png"
-
-          if(type=="wordpress")
-	  {
-             iname="markers/blue_MarkerA.png"
-	  }
-          if(type=="ssh")
-	  {
-             iname="markers/yellow_MarkerA.png"
-	  }
-          if(type=="dovecot")
-	  {
-             iname="markers/green_MarkerA.png"
-	  }
-          if(type=="sasl")
-	  {
-             iname="markers/brown_MarkerA.png"
-	  }
     
+    color='red';
+    letter='U';
+
+    layerName=data.name;
+
+    if(data.ban == 0){
+        color='paleblue';
+        layerName=layerName+' released'
+    }
+
+    if (data.name.match(/ssh/)) {
+        letter = 'S';
+    }else if (data.name.match(/apache/)) {
+        letter = 'A';
+    }else if (data.name.match(/postfix/)) {
+        letter = 'P';
+    }else if (data.name.match(/sasl/)) {
+        letter = 'S';
+    }
+
+    iname = "images/markers/"+color+"_Marker"+letter+".png";
+
+    var icon = L.icon({
+        iconUrl: iname,
+        iconAnchor: [10, 34]
+    });
+
+
+    var html = "<b>" + data.name + " " + "</b><br />" + data.country + ", "+data.city+" <br/>";
+    $.each(data.ips.split(','), function(i,j){
+        html+='<a href="#" onclick="whois(\''+j.split(':')[0]+'\');return false;">'+j.split(':')[1]+'</a><br/>';
+    });
+    var marker=L.marker({lon: data.longitude, lat: data.latitude}, {icon: icon}).bindPopup(html);
+
+    if(typeof(layerGroups[layerName]) == 'undefined'){
+    	layerGroups[layerName] = L.layerGroup();
+        layerGroups[layerName].addTo(map);
+        layerControl.addOverlay(layerGroups[layerName], layerName);
+    }
+
+    layerGroups[layerName].addLayer(marker);
+
+}
+
+
+function getColor(d) {
+    if(typeof(countryCounter[d]) != 'undefined'){
+      d=countryCounter[d].count;
+    }else{
+      d=0;
+    }
+    
+    return d > maxPerCountry*80/100 ? '#800026' :
+           d > maxPerCountry*50/100  ? '#BD0026' :
+           d > maxPerCountry*30/100  ? '#E31A1C' :
+           d > maxPerCountry*20 /100 ? '#FC4E2A' :
+           d > maxPerCountry*10/100   ? '#FD8D3C' :
+           d > maxPerCountry*6/100   ? '#FEB24C' :
+           d > maxPerCountry*2/100   ? '#FED976' :
+                      '#FFEDA0';
+}
+
+function style(feature) {
+
+    return {
+        fillColor: getColor(feature.id),
+        weight: 2,
+        opacity: 1,
+        color: 'white',
+        dashArray: '3',
+        fillOpacity: 0.7
+    };
+}
+
+
+//give an id in the table and retourne the ip whois corresponding
+function whois(id){
+    $.getJSON("get.php?action=whois&ip="+id, function(data) {
+        $('#whois .modal-body').html(data.whois);
+        $('#whois .modal-title').html(data.ip)
+        $('#whois').modal('show');
+    });
+}
+
+var map;
+
+$(document).ready(function() {
+   map = L.map('map', {
+        center: [0, 0],
+        zoom: 2
+    });
+
+    	
 	
 
-          var marker = new google.maps.Marker({
-                position: point,
-                title:name,
-                icon: iname
-                });
+    // add the OpenStreetMap tiles
+    osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      minZoom: 2,
+      worldCopyJump: true,
+      noWrap: false,
+      attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+    })
 
-          marker.setMap(map);
+    map.addLayer(osm);
+    
 
-          var html = "<b>" + type+ " ATTACK" + "</b><br />"+name + "<br/>" + address;
+    //show the box to controll layer
+    layerControl = L.control.layers(null, null, {position: 'topleft'});
+    //add default map
+    layerControl.addBaseLayer(osm, "OSM default")
 
-          var infowindow = new google.maps.InfoWindow({
-              content: html
-          });
+    // show the scale bar on the lower left corner
+    L.control.scale().addTo(map);
+    
 
-          google.maps.event.addListener(marker, 'click', (function() {
-              infowindow.open(map, marker);
+    loadmarkers();
 
- 	      if(oldinfowindow!=null)
-              {
-                   oldinfowindow.close();
-              }
+    
+    layerControl.addTo(map);
 
-	      oldinfowindow=infowindow;
-         }));
-      }
+    var myVar = setInterval(function() {
+        updatex();
+    }, 1000 * 60 * 5);
+});
 
-
-      function initialize() {
-          var mapOptions = {
-              center: new google.maps.LatLng(50.448807, -3.746826),
-              zoom: 2
-          };
-          map = new google.maps.Map(document.getElementById("map_canvas"),mapOptions);
-
- 	  loadmarkers();
-      }
-
-      function myTimer()
-      {
-	  updatex();
-      }
-
-      var oldinfowindow=null;	
-
-      google.maps.event.addDomListener(window, 'load', initialize);
-
-      var myVar=setInterval(function(){myTimer()},1000*60*5);
 

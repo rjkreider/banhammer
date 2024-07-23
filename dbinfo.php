@@ -1,7 +1,11 @@
 <?php
-$db_host = '127.0.0.1';
-$db_user = 'fail2ban';
-$db_pwd = 'fail2ban';
-$database = 'fail2ban';
+$database = 'fail2ban.db';
 $table = 'fail2ban';
+
+// Opens a connection to an SQLite3 database
+$link = new SQLite3($database);
+if (!$link) {
+    die('Not connected: ' . $link->lastErrorMsg());
+}
+?>
 
